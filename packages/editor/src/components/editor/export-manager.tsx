@@ -7,9 +7,11 @@ import type { Mesh, Object3D } from 'three'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js'
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
+import * as WebGLTextureUtils from 'three/examples/jsm/utils/WebGLTextureUtils.js'
 
 export function ExportManager() {
   const scene = useThree((state) => state.scene)
+  const gl = useThree((state) => state.gl)
   const setExportScene = useViewer((state) => state.setExportScene)
 
   useEffect(() => {
@@ -43,6 +45,14 @@ export function ExportManager() {
       // Default: GLB export (existing behavior)
       const exporter = new GLTFExporter()
 
+      // Compressed (KTX2/basis) textures must be decompressed during export.
+      // three r184's GLTFExporter requires textureUtils (backed by the active
+      // WebGLRenderer) or it throws "setTextureUtils() must be called".
+      exporter.setTextureUtils({
+        decompress: (texture, maxTextureSize) =>
+          WebGLTextureUtils.decompress(texture, maxTextureSize, gl),
+      })
+
       return new Promise<void>((resolve, reject) => {
         exporter.parse(
           exportScene,
@@ -65,7 +75,7 @@ export function ExportManager() {
     return () => {
       setExportScene(null)
     }
-  }, [scene, setExportScene])
+  }, [scene, gl, setExportScene])
 
   return null
 }
